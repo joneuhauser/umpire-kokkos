@@ -3,13 +3,21 @@
 #include <cstdio>
 #include <impl/Kokkos_SharedAlloc_timpl.hpp>
 
-KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(
-    UmpireSpace<Kokkos::HostSpace>);
-KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(
-    UmpireSpace<Kokkos::HIPSpace>);
+struct Host {};
+struct Pool {};
 
-using ViewType = Kokkos::View<double *, UmpireSpace<Kokkos::HIPSpace>>;
-using HostViewType = Kokkos::View<double *, UmpireSpace<Kokkos::HostSpace>>;
+#ifdef KOKKOS_ENABLE_HIP
+using PoolSpaceType = UmpireSpace<Kokkos::HIPSpace, Pool>;
+using ViewType = Kokkos::View<double *, PoolSpaceType>;
+#else
+using PoolSpaceType = UmpireSpace<Kokkos::HostSpace, Pool>;
+using ViewType = Kokkos::View<double *, PoolSpaceType>;
+#endif
+using HostSpaceType = UmpireSpace<Kokkos::HostSpace, Host>;
+using HostViewType = Kokkos::View<double *, HostSpaceType>;
+
+KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(HostSpaceType);
+KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(PoolSpaceType);
 
 int main(int argc, char *argv[]) {
   Kokkos::initialize(argc, argv);
@@ -17,22 +25,21 @@ int main(int argc, char *argv[]) {
   {
     auto &rm = umpire::ResourceManager::getInstance();
     auto allocator = rm.makeAllocator<umpire::strategy::QuickPool>(
-        "pool", rm.getAllocator("DEVICE"), 1024 * 1024);
+        "pool", rm.getAllocator("HOST"), 1024 * 1024);
 
-    UmpireSpace<> umpire_host_space("HOST");
-    HostViewType a_h(Kokkos::view_alloc(umpire_host_space, "A_host"), 10);
+    HostSpaceType::set_allocator("HOST");
+    PoolSpaceType::set_allocator("pool");
 
-    UmpireSpace<Kokkos::HIPSpace> umpire_space("pool");
-    ViewType a(Kokkos::view_alloc(umpire_space, "A"), 10);
+    HostViewType a_h("A_host", 10);
+    ViewType a("A", 10);
 
-    Kokkos::parallel_for(
-        10, KOKKOS_LAMBDA(const int i) { a(i) = i; });
+    Kokkos::parallel_for(10, KOKKOS_LAMBDA(const int i) { a(i) = i; });
 
     Kokkos::fence();
 
     Kokkos::deep_copy(a_h, a);
 
-    for(int i{0}; i < 10; ++i) {
+    for (int i{0}; i < 10; ++i) {
       std::cout << "a(i) = " << a_h(i) << "\n";
     }
   }
@@ -41,3 +48,6 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(HostSpaceType);
+KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(PoolSpaceType);

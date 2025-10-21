@@ -5,11 +5,11 @@
 #include <Kokkos_Core.hpp>
 #include <string>
 
-template <typename MemorySpace = Kokkos::HostSpace> class UmpireSpace {
+template <typename MemorySpace, typename TagType = void> class UmpireSpace {
 public:
   //! Tag this class as a kokkos memory space
-  using memory_space = UmpireSpace<MemorySpace>;
-  using size_type = size_t;
+  using memory_space = UmpireSpace<MemorySpace, TagType>;
+  using size_type = typename MemorySpace::size_type;
   using umpire_space = UmpireSpace<MemorySpace>;
 
   /// \typedef execution_space
@@ -23,24 +23,18 @@ public:
   //! This memory space preferred device_type
   using device_type = Kokkos::Device<execution_space, MemorySpace>;
 
-  //! Constructor taking the name of the Umpire::Allocator
-  explicit UmpireSpace(const std::string &allocator_name)
-      : m_allocator_name(allocator_name) {}
-
-  //! Defaulted constructors and assignment operators
-  UmpireSpace() = default;
-  UmpireSpace(UmpireSpace &&rhs) = default;
-  UmpireSpace(const UmpireSpace &rhs) = default;
-  UmpireSpace &operator=(UmpireSpace &&) = default;
-  UmpireSpace &operator=(const UmpireSpace &) = default;
-  ~UmpireSpace() = default;
+  static void set_allocator(const std::string &allocator_name) {
+    static int count = [allocator_name]() {
+      auto &rm = umpire::ResourceManager::getInstance();
+      m_allocator = rm.getAllocator(allocator_name);
+      return 1;
+    }();
+    // calling it more than once is erroneous
+    assert(count == 1);
+  }
 
   //! Allocate memory using the Umpire::Allocator
-  void *allocate(size_t size) const {
-    return umpire::ResourceManager::getInstance()
-        .getAllocator(m_allocator_name)
-        .allocate(size);
-  }
+  void *allocate(size_t size) const { return m_allocator->allocate(size); }
 
   template <typename ExecutionSpace>
   void *allocate(const ExecutionSpace &, const char *arg_label,
@@ -56,9 +50,7 @@ public:
 
   //! Deallocate memory using the Umpire::Allocator
   void deallocate(void *ptr, size_t size) const {
-    umpire::ResourceManager::getInstance()
-        .getAllocator(m_allocator_name)
-        .deallocate(ptr);
+    m_allocator->deallocate(ptr);
   }
 
   void deallocate(const char *arg_label, void *const arg_alloc_ptr,
@@ -76,159 +68,95 @@ public:
   }
 
 private:
-  const std::string m_allocator_name;
+  static std::optional<umpire::Allocator> m_allocator;
   friend class Kokkos::Impl::SharedAllocationRecord<UmpireSpace<MemorySpace>,
                                                     void>;
 };
 
 namespace Kokkos {
-
 namespace Impl {
 
-template <>
-struct MemorySpaceAccess<Kokkos::HostSpace, UmpireSpace<Kokkos::HostSpace>> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
+template <typename T>
+concept NotAnonSpace = !std::same_as<T, Kokkos::AnonymousSpace>;
+
+template <NotAnonSpace MemorySpace1, class MemorySpace2, class TagType>
+struct MemorySpaceAccess<MemorySpace1, UmpireSpace<MemorySpace2, TagType>> {
+  static constexpr bool assignable =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::assignable;
+  static constexpr bool accessible =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::accessible;
+  static constexpr bool deepcopy =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::deepcopy;
 };
 
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::HostSpace>, Kokkos::HostSpace> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
+template <class MemorySpace1, NotAnonSpace MemorySpace2, class TagType>
+struct MemorySpaceAccess<UmpireSpace<MemorySpace1, TagType>, MemorySpace2> {
+  static constexpr bool assignable =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::assignable;
+  static constexpr bool accessible =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::accessible;
+  static constexpr bool deepcopy =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::deepcopy;
 };
 
-#ifdef KOKKOS_ENABLE_CUDA
-template <>
-struct MemorySpaceAccess<Kokkos::CudaSpace, UmpireSpace<Kokkos::HostSpace>> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
+template <class MemorySpace1, class MemorySpace2, class TagType1,
+          class TagType2>
+struct MemorySpaceAccess<UmpireSpace<MemorySpace1, TagType1>,
+                         UmpireSpace<MemorySpace2, TagType2>> {
+  static constexpr bool assignable =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::assignable;
+  static constexpr bool accessible =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::accessible;
+  static constexpr bool deepcopy =
+      MemorySpaceAccess<MemorySpace1, MemorySpace2>::deepcopy;
 };
 
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::HostSpace>, Kokkos::CudaSpace> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<Kokkos::HostSpace, UmpireSpace<Kokkos::CudaSpace>> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::CudaSpace>, Kokkos::HostSpace> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<Kokkos::CudaSpace, UmpireSpace<Kokkos::CudaSpace>> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::CudaSpace>, Kokkos::CudaSpace> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-#endif // KOKKOS_ENABLE_CUDA
-
-#ifdef KOKKOS_ENABLE_HIP
-template <>
-struct MemorySpaceAccess<Kokkos::HIPSpace, UmpireSpace<Kokkos::HostSpace>> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::HostSpace>, Kokkos::HIPSpace> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<Kokkos::HostSpace, UmpireSpace<Kokkos::HIPSpace>> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::HIPSpace>, Kokkos::HostSpace> {
-  enum { assignable = false };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<Kokkos::HIPSpace, UmpireSpace<Kokkos::HIPSpace>> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-
-template <>
-struct MemorySpaceAccess<UmpireSpace<Kokkos::HIPSpace>, Kokkos::HIPSpace> {
-  enum { assignable = true };
-  enum { accessible = true };
-  enum { deepcopy = true };
-};
-#endif // KOKKOS_ENABLE_HIP
-
-template <class MemorySpace1, class MemorySpace2, class ExecutionSpace>
-struct DeepCopy<UmpireSpace<MemorySpace1>, MemorySpace2, ExecutionSpace> {
+template <class MemorySpace1, class MemorySpace2, class TagType,
+          class ExecutionSpace>
+struct DeepCopy<UmpireSpace<MemorySpace1, TagType>, MemorySpace2,
+                ExecutionSpace> {
   inline DeepCopy(void *dst, const void *src, size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(dst, src, n);
   }
 
-  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src, size_t n) {
+  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src,
+                  size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(exec, dst, src, n);
   }
 };
 
-template <class MemorySpace1, class MemorySpace2, class ExecutionSpace>
-struct DeepCopy<UmpireSpace<MemorySpace1>, UmpireSpace<MemorySpace2>, ExecutionSpace> {
+template <class MemorySpace1, class MemorySpace2, class TagType1,
+          class TagType2, class ExecutionSpace>
+struct DeepCopy<UmpireSpace<MemorySpace1, TagType1>,
+                UmpireSpace<MemorySpace2, TagType2>, ExecutionSpace> {
   inline DeepCopy(void *dst, const void *src, size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(dst, src, n);
   }
 
-  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src, size_t n) {
+  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src,
+                  size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(exec, dst, src, n);
   }
 };
 
-template <class MemorySpace1, class MemorySpace2, class ExecutionSpace>
-struct DeepCopy<MemorySpace1, UmpireSpace<MemorySpace2>, ExecutionSpace> {
+template <class MemorySpace1, class MemorySpace2, class TagType,
+          class ExecutionSpace>
+struct DeepCopy<MemorySpace1, UmpireSpace<MemorySpace2, TagType>,
+                ExecutionSpace> {
   inline DeepCopy(void *dst, const void *src, size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(dst, src, n);
   }
 
-  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src, size_t n) {
+  inline DeepCopy(const ExecutionSpace &exec, void *dst, const void *src,
+                  size_t n) {
     DeepCopy<MemorySpace1, MemorySpace2, ExecutionSpace>(exec, dst, src, n);
   }
 };
-
-KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(UmpireSpace<Kokkos::HostSpace>);
-#ifdef KOKKOS_ENABLE_HIP
-KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(UmpireSpace<Kokkos::HIPSpace>);
-#endif
-#ifdef KOKKOS_ENABLE_CUDA
-KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(UmpireSpace<Kokkos::CudaSpace>);
-#endif
 
 } // namespace Impl
 } // namespace Kokkos
+
+template <typename MemorySpace, typename TagType>
+std::optional<umpire::Allocator> UmpireSpace<MemorySpace, TagType>::m_allocator;
 
 #endif // KOKKOS_UMPIRE_SPACE_HPP
