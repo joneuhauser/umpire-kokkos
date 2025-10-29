@@ -7,20 +7,12 @@
 
 template <typename MemorySpace, typename TagType = void> class UmpireSpace {
 public:
-  //! Tag this class as a kokkos memory space
   using memory_space = UmpireSpace<MemorySpace, TagType>;
   using size_type = typename MemorySpace::size_type;
   using umpire_space = UmpireSpace<MemorySpace>;
 
-  /// \typedef execution_space
-  /// \brief Default execution space for this memory space.
-  ///
-  /// Every memory space has a default execution space.  This is
-  /// useful for things like initializing a View (which happens in
-  /// parallel using the View's default execution space).
   using execution_space = typename MemorySpace::execution_space;
 
-  //! This memory space preferred device_type
   using device_type = Kokkos::Device<execution_space, MemorySpace>;
 
   static void set_allocator(const std::string &allocator_name) {
@@ -29,11 +21,9 @@ public:
       m_allocator = rm.getAllocator(allocator_name);
       return 1;
     }();
-    // calling it more than once is erroneous
     assert(count == 1);
   }
 
-  //! Allocate memory using the Umpire::Allocator
   void *allocate(size_t size) const { return m_allocator->allocate(size); }
 
   template <typename ExecutionSpace>
@@ -48,7 +38,6 @@ public:
     return allocate(arg_alloc_size);
   }
 
-  //! Deallocate memory using the Umpire::Allocator
   void deallocate(void *ptr, size_t size) const {
     m_allocator->deallocate(ptr);
   }
