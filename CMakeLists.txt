@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 project(KokkosUmpire LANGUAGES CXX)
 
+enable_testing()
+
 # Option to enable CUDA support
 option(ENABLE_CUDA "Enable CUDA support" OFF)
 option(ENABLE_HIP "Enable HIP support" OFF)
@@ -79,3 +81,6 @@ endif()
 install(TARGETS umpire_space
   RUNTIME DESTINATION bin
 )
+
+add_subdirectory(examples)
+add_subdirectory(tests)
