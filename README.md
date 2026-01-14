@@ -35,17 +35,18 @@ Note that these build instructions are specific to LLNL's RzAdams machine which 
 
 First, build Umpire v2025.12.0 with C++20 support.
 
+Start by cloning the Umpire repo and checking out the v2025.12.0 version.
 ```
 git clone https://github.com/llnl/Umpire.git
 git submodule update --init --recursive
 git checkout v2025.12.0
 ```
-
+On RzAdams, I loaded the following submodules:
 ```
 ml rocm/6.4.0
 ml cmake/3.24.2
 ```
-
+Next, build and install Umpire:
 ```
 cmake -DROCM_ROOT_DIR=/opt/rocm-6.4.0 -DHIP_PATH=/opt/rocm-6.4.0/llvm/bin -DCMAKE_CXX_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DCMAKE_HIP_ARCHITECTURES=gfx942 -DCMAKE_CXX_STANDARD=20 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/g/g0/belcher6/kokkos-stuff/umpire-install -DBLT_CXX_STD=c++20 -DENABLE_HIP=On -DCMAKE_EXE_LINKER_FLAGS="-lpthread" ../
 
@@ -62,11 +63,12 @@ Now build Kokkos v5.0.0 with C++20.
 >[!NOTE]
 >On RzAdams, I needed to use the `-DKokkos_ARCH_AMD_GFX942_APU=ON` cmake option when building.
 
+Start by cloning the Kokkos repo and checking out the 5.0.0 version.
 ```
 git clone https://github.com/kokkos/kokkos.git
 git checkout 5.0.0
 ```
-
+Build and install Kokkos.
 ```
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/g/g0/belcher6/kokkos-stuff/kokkos-install -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_AMD_GFX942_APU=ON -DCMAKE_HIP_ARCHITECTURES=gfx942 -DKokkos_ARCH_ZEN4=On -DCRAYPE_LINK_TYPE=dynamic ../
 
@@ -77,12 +79,13 @@ make -j install
 
 Lastly, build UmpireSpace, linking in the installations of Kokkos and Umpire that you just built.
 
+Start by cloning the UmpireSpace repo.
 ```
 git clone https://github.com/llnl/umpire-kokkos.git
 mkdir build
 cd build
 ```
-
+Build UmpireSpace:
 ```
 cmake -DENABLE_HIP=On -DCMAKE_BUILD_TYPE=Release -DKokkos_ROOT="/g/g0/belcher6/kokkos-stuff/kokkos-install/lib64/cmake/Kokkos/" -DUMPIRE_DIR="/g/g0/belcher6/kokkos-stuff/umpire-install/lib64/cmake/umpire/" -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DCMAKE_HIP_ARCHITECTURES=gfx942 ../
 
@@ -105,6 +108,7 @@ make -j
 >(comment out assert statement)
 >```
 
+After making any edits to the Kokkos install, continue building:
 ```
 make -j
 ```
