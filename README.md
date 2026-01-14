@@ -105,7 +105,7 @@ make -j
 >However, this is easily fixed with:
 >```
 >vi ../../kokkos-install/include/Kokkos_HostSpace.hpp
->(comment out assert statement)
+>(comment out assert statement on line 6)
 >```
 
 After making any edits to the Kokkos install, continue building:
