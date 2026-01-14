@@ -1,4 +1,4 @@
-# UmpireSpace Documentation
+# UmpireSpace Documentation and QuickStart Guide
 
 UmpireSpace is a new Kokkos memory space which utilizes Umpire's memory management capabilities.
 
