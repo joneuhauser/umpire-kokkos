@@ -1,4 +1,4 @@
-# UmpireSpace Documentation and QuickStart Guide
+# UmpireSpace Documentation and Quick Start Guide
 
 UmpireSpace is a new Kokkos memory space which utilizes Umpire's memory management capabilities.
 
@@ -17,7 +17,9 @@ The Kokkos [Tutorials](https://github.com/kokkos/kokkos-tutorials) are organized
 
 Umpire has a number of different allocation strategies including various memory pools, such as ``QuickPool``, which
 have demonstrated substantial performance gains for HPC applications. Although Kokkos provides its own support for 
-portable memory management, it does not currently support memory pools. Umpire is built to be modular and can therefore 
+portable memory management, it does not currently support memory pools, so using UmpireSpace could lead to significant memory performance gains. 
+
+Umpire is built to be modular and can therefore 
 be integrated and used with Kokkos. With growing demand to use Umpire and Kokkos together, Umpire established a 
 collaboration with Kokkos to create UmpireSpace.
 
@@ -56,12 +58,9 @@ make -j install
 >[!NOTE]
 >For my Umpire build on RzAdams, I needed the `-lpthread` flag in order to build with the `hipcc` compiler.
 
-### Build Kokkos v5.0.0
+### Build Kokkos 5.0.0
 
-Now build Kokkos v5.0.0 with C++20. 
-
->[!NOTE]
->On RzAdams, I needed to use the `-DKokkos_ARCH_AMD_GFX942_APU=ON` cmake option when building.
+Now build Kokkos 5.0.0 with C++20. 
 
 Start by cloning the Kokkos repo and checking out the 5.0.0 version.
 ```
@@ -69,6 +68,10 @@ git clone https://github.com/kokkos/kokkos.git
 git checkout 5.0.0
 ```
 Build and install Kokkos.
+
+>[!NOTE]
+>On RzAdams, I needed to use the `-DKokkos_ARCH_AMD_GFX942_APU=ON` cmake option when building.
+>Otherwise I got runtime errors and other warnings such as `Kokkos::HIP::initialize WARNING: running kernels for MI300X (discrete GPU) on a MI300A (APU).`
 ```
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/g/g0/belcher6/kokkos-stuff/kokkos-install -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_AMD_GFX942_APU=ON -DCMAKE_HIP_ARCHITECTURES=gfx942 -DKokkos_ARCH_ZEN4=On -DCRAYPE_LINK_TYPE=dynamic ../
 
@@ -77,7 +80,7 @@ make -j install
 
 ### Build UmpireSpace:
 
-Lastly, build UmpireSpace, linking in the installations of Kokkos and Umpire that you just built.
+Lastly, build UmpireSpace and link in the installations of Kokkos and Umpire that you just built above.
 
 Start by cloning the UmpireSpace repo.
 ```
@@ -139,11 +142,12 @@ a(i) = 7
 a(i) = 8
 a(i) = 9
 ```
+***Congratulations!*** Now you are able to utilize Umpire for your Kokkos application's memory needs.
 
 ## Getting in Contact
 
 I had several issues revolving around the use of a consistent compiler (used `hipcc` for all 3 builds), specifying the correct architecture in the build commands,
-and using C++ 20 flags.
+and using C++ 20 flags. It took several iterations to get just the right build recipe. Umpire and Kokkos teams will be working to make this process smoother.
 
-If you have trouble building UmpireSpace or any other questions regarding UmpireSpace, reach out to the Umpire team by emailing umpire-dev[at]llnl.gov.
+For now, if you have trouble building UmpireSpace or any other questions regarding UmpireSpace, reach out to the Umpire team by emailing umpire-dev[at]llnl.gov.
 Alternatively, you can also [make a new issue](https://github.com/llnl/umpire-kokkos/issues/new/choose).
