@@ -151,3 +151,11 @@ and using C++ 20 flags. It took several iterations to get just the right build r
 
 For now, if you have trouble building UmpireSpace or any other questions regarding UmpireSpace, reach out to the Umpire team by emailing umpire-dev[at]llnl.gov.
 Alternatively, you can also [make a new issue](https://github.com/llnl/umpire-kokkos/issues/new/choose).
+
+# Release
+
+UmpireSpace is released under an MIT license from Umpire. For more details, please see the
+[LICENSE](./LICENSE) and [RELEASE](./RELEASE) files.
+
+`LLNL-CODE-747640`
+`OCEC-18-031`
