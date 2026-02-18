@@ -154,8 +154,8 @@ Alternatively, you can also [make a new issue](https://github.com/llnl/umpire-ko
 
 # Release
 
-UmpireSpace is released under an MIT license from Umpire. For more details, please see the
-[LICENSE](./LICENSE) and [RELEASE](./RELEASE) files.
+UmpireSpace is released under an MIT license (extended from [Umpire](https://github.com/llnl/Umpire)). 
+For more details, please see the [LICENSE](./LICENSE) and [RELEASE](./RELEASE) files.
 
 `LLNL-CODE-747640`
 `OCEC-18-031`
