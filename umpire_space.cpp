@@ -1,7 +1,10 @@
 #include "UmpireSpace.hpp"
 #include "umpire/strategy/QuickPool.hpp"
 #include <cstdio>
+
+#define KOKKOS_IMPL_PUBLIC_INCLUDE
 #include <impl/Kokkos_SharedAlloc_timpl.hpp>
+#undef KOKKOS_IMPL_PUBLIC_INCLUDE
 
 struct Host {};
 struct Pool {};
@@ -9,15 +12,15 @@ struct Pool {};
 #ifdef KOKKOS_ENABLE_HIP
 using PoolSpaceType = UmpireSpace<Kokkos::HIPSpace, Pool>;
 using ViewType = Kokkos::View<double *, PoolSpaceType>;
+KOKKOS_IMPL_HOST_INACCESSIBLE_SHARED_ALLOCATION_SPECIALIZATION(PoolSpaceType);
 #else
 using PoolSpaceType = UmpireSpace<Kokkos::HostSpace, Pool>;
 using ViewType = Kokkos::View<double *, PoolSpaceType>;
+KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(PoolSpaceType);
 #endif
 using HostSpaceType = UmpireSpace<Kokkos::HostSpace, Host>;
 using HostViewType = Kokkos::View<double *, HostSpaceType>;
-
 KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(HostSpaceType);
-KOKKOS_IMPL_SHARED_ALLOCATION_SPECIALIZATION(PoolSpaceType);
 
 int main(int argc, char *argv[]) {
   Kokkos::initialize(argc, argv);
@@ -50,4 +53,8 @@ int main(int argc, char *argv[]) {
 }
 
 KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(HostSpaceType);
+#ifdef KOKKOS_ENABLE_HIP
+KOKKOS_IMPL_HOST_INACCESSIBLE_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(PoolSpaceType);
+#else
 KOKKOS_IMPL_SHARED_ALLOCATION_RECORD_EXPLICIT_INSTANTIATION(PoolSpaceType);
+#endif
