@@ -19,18 +19,40 @@ public:
     static int count = [allocator_name]() {
       auto &rm = umpire::ResourceManager::getInstance();
       m_allocator = rm.getAllocator(allocator_name);
-      return 1;
+      return 0;
     }();
-    assert(count == 1);
+    assert(++count == 1);
   }
 
-  void *allocate(size_t size) const { return m_allocator->allocate(size); }
+  void *allocate(size_t size) const {
+    assert(m_allocator.has_value());
+    return m_allocator->allocate(size);
+  }
 
+private:
   template <typename ExecutionSpace>
-  void *allocate(const ExecutionSpace &, const char *arg_label,
+  void *impl_allocate(const ExecutionSpace &exec, const char *arg_label,
+		      const size_t arg_alloc_size,
+		      const size_t arg_logical_size,
+		      const Kokkos::Tools::SpaceHandle arg_handle =
+                          Kokkos::Tools::make_space_handle(name())) const {
+    void *ptr = allocate(arg_alloc_size);
+    exec.fence(std::string("UmpireSpace<") + MemorySpace::name() + ">, fence after allocating");
+
+    if (Kokkos::Profiling::profileLibraryLoaded()) {
+      const size_t reported_size =
+        (arg_logical_size > 0) ? arg_logical_size : arg_alloc_size;
+      Kokkos::Profiling::allocateData(arg_handle, arg_label, ptr, reported_size);
+    }
+    return ptr;
+  }
+
+public:
+  template <typename ExecutionSpace>
+  void *allocate(const ExecutionSpace &exec, const char *arg_label,
                  const size_t arg_alloc_size,
                  const size_t arg_logical_size = 0) const {
-    return allocate(arg_alloc_size);
+    return impl_allocate(exec, arg_label, arg_alloc_size, arg_logical_size);
   }
 
   void *allocate(const char *arg_label, const size_t arg_alloc_size,
@@ -39,6 +61,7 @@ public:
   }
 
   void deallocate(void *ptr, size_t size) const {
+    assert(m_allocator.has_value());
     m_allocator->deallocate(ptr);
   }
 
