@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   {
     auto &rm = umpire::ResourceManager::getInstance();
     auto allocator = rm.makeAllocator<umpire::strategy::QuickPool>(
-        "pool", "HOST", 1024 * 1024);
+        "pool", rm.getAllocator("HOST"), 1024 * 1024);
 
     HostSpaceType::set_allocator("HOST");
     PoolSpaceType::set_allocator("pool");
